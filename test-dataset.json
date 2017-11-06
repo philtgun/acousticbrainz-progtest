@@ -1,0 +1,20 @@
+{
+    "name": "test",
+    "description": "this is a test dataset",
+    "public": true,
+    "classes": [
+        {
+            "name": "class1",
+            "recordings": ["7b4d371d-d7e2-47ab-89ac-b5a9f108a131"]
+        },
+        {
+            "name": "class2",
+            "recordings": ["9fb5fd3b-6c47-48ff-a7f2-e980a06b4219", "0b85ed5d-f3e7-4f4a-8517-c7b4bdf03b84"]
+        },
+        {
+            "name": "class3",
+            "recordings": ["48b8b84b-395c-48b0-b908-865dd4f42324", "d4d49dcb-b307-4bc2-9bb5-cafe47edad20"]
+        }
+
+    ]
+}
