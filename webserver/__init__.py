@@ -21,13 +21,6 @@ def create_app():
     from db import init_db_engine
     init_db_engine(app.config['SQLALCHEMY_DATABASE_URI'])
 
-    # Memcached
-    if 'MEMCACHED_SERVERS' in app.config:
-        from db import cache
-        cache.init(app.config['MEMCACHED_SERVERS'],
-                   app.config['MEMCACHED_NAMESPACE'],
-                   debug=1 if app.debug else 0)
-
     # Extensions
     from flask_uuid import FlaskUUID
     FlaskUUID(app)
@@ -62,12 +55,6 @@ def create_app():
 
     _register_blueprints(app)
 
-    # Admin section
-    from flask_admin import Admin
-    from webserver.admin import views as admin_views
-    admin = Admin(app, index_view=admin_views.HomeView(name='Admin'))
-    admin.add_view(admin_views.AdminsView(name='Admins'))
-
     return app
 
 
@@ -87,29 +74,18 @@ def _register_blueprints(app):
 
     def register_ui(app):
         from webserver.views.index import index_bp
-        from webserver.views.data import data_bp
-        from webserver.views.stats import stats_bp
         from webserver.views.login import login_bp
         from webserver.views.user import user_bp
-        from webserver.views.datasets import datasets_bp
         app.register_blueprint(index_bp)
-        app.register_blueprint(data_bp)
-        app.register_blueprint(stats_bp)
         app.register_blueprint(login_bp, url_prefix='/login')
         app.register_blueprint(user_bp)
-        app.register_blueprint(datasets_bp, url_prefix='/datasets')
+
 
     def register_api(app):
         v1_prefix = '/api/v1'
-        from webserver.views.api.v1.core import bp_core
         from webserver.views.api.v1.datasets import bp_datasets
-        from webserver.views.api.v1.dataset_eval import bp_dataset_eval
-        app.register_blueprint(bp_core, url_prefix=v1_prefix)
         app.register_blueprint(bp_datasets, url_prefix=v1_prefix + '/datasets')
-        app.register_blueprint(bp_dataset_eval, url_prefix=v1_prefix + '/datasets/evaluation')
 
-        from webserver.views.api.legacy import api_legacy_bp
-        app.register_blueprint(api_legacy_bp)
 
     register_ui(app)
     register_api(app)

@@ -1,9 +1,14 @@
-acousticbrainz-server
-=====================
+acousticbrainz-progtest
+=======================
 
-The server components for the new AcousticBrainz project.
+This project contains a programming test for the AcousticBrainz project.
+Specifically, it is a subset of the AcousticBrainz server project,
+which can be found at https://github.com/metabrainz/acousticbrainz-server
+As this project is designed as a programming test, many parts of the database
+and website have been removed from it.
 
-Please report issues here: http://tickets.musicbrainz.org/browse/AB
+Read on for instructions on how to install the server and for the
+programming task.
 
 
 ## Installation
@@ -12,51 +17,21 @@ Please report issues here: http://tickets.musicbrainz.org/browse/AB
 
 The easiest way to start is to setup ready-to-use [Vagrant](https://www.vagrantup.com/)
 VM. To do that [download](https://www.vagrantup.com/downloads.html) and install
-Vagrant for your OS. Then copy two config files:
+Vagrant for your OS. Copy the config file
 
-1. `config.py.sample` to `config.py` *(you don't need to modify this file)*
-2. `profile.conf.in.sample` to `profile.conf.in` in the `./hl_extractor/` directory
-*(in this file you need to set `models_essentia_git_sha` value)*
+1. `config.py.sample` to `config.py`
 
 After that you can spin up the VM and start working with it:
 
     $ vagrant up
     $ vagrant ssh
 
-There are some environment variables that you can set to affect the
-provisioning of the virtual machine.
-
- * `AB_NCPUS`: Number of CPUs to put in the VM (default 1, 2 makes
-               compilation faster)
- * `AB_MEM`:   Amount of memory (default 1024mb)
- * `AB_MIRROR`: ubuntu mirror (default archive.ubuntu.com)
- * `AB_NOHL`: If set, don't compile the highlevel calculation tools
-              (not needed for regular server development)
-
-
-There are some shortcuts defined using fabric to perform commonly used
-commands:
-
- * `fab vpsql`: Load a psql session. Requires a local psql client
- * `fab vssh`: Connect to the VM more efficiently, saving the settings
-               so that you don't need to run vagrant each time you ssh.
-
 ### Manually
 
-Full installation instructions are available in [INSTALL.md](https://github.com/metabrainz/acousticbrainz-server/blob/master/INSTALL.md) file. After installing, continue the following steps.
+Full installation instructions are available in the INSTALL.md file. This
+process is *not* recommended for the programming test, but you can follow
+it if you are comfortable with the technology stack.
 
-## Configuration and development
-
-### Building static files
-
-We use Gulp as our JavaScript/CSS build system.
-node.js dependencies. Calling `gulp` on its own will build everything necessary
-to access the server in a web browser:
-
-    ./node_modules/.bin/gulp
-
-*Keep in mind that you'll need to rebuild static files after you modify
-JavaScript or CSS.*
 
 ### Login
 
@@ -73,91 +48,54 @@ Copy the OAuth Client ID and OAuth Client Secret values to
 You should now be able to use the menu in the top corner of your AcousticBrainz server
 to log in.
 
-### Admin interface
-
-Once you have logged in, you can make your user an admin, by running
-
-    python manage.py add_admin <your user>
-
-You should now be able to access the admin section at http://localhost:8080/admin
-
 
 ## Running
-
-Before starting the server you will need to build static files:
-
-    $ cd acousticbrainz-server
-    $ fab build_static
-
-*Keep in mind that you'll need to rebuild static files after you modify
-JavaScript or CSS.*
 
 You can start the web server (will be available at http://localhost:8080/):
 
     $ cd acousticbrainz-server
     $ python manage.py runserver
 
-the high-level data extractor:
+# Programming test
 
-    $ cd acousticbrainz-server/hl_extractor
-    $ python hl_calc.py
+We have started an API definition for a component of AcousticBrainz, called the dataset editor.
+The task is to implement two methods API in this definition which modify the database.
 
-the dataset evaluator:
+In AcousticBrainz, a dataset has a name, and owner, and a list of _classes_.
+Classes have a name, and a list of _members_, which are UUIDs.
+These are represented by three tables in the database, `dataset`, `dataset_class`, and `dataset_class_member`.
+You can see the definitions of these tables in the database setup scripts (`admin/sql/create_tables.sql`)
 
-    $ cd acousticbrainz-server/dataset_eval
-    $ python evaluate.py
+
+## Authentication and loading data
+
+Once you start the webserver, navigate to http://localhost:8080 and log in using the link in the top right menu, creating
+a MusicBrainz account if you need to. Once you have logged in, go to your user profile and generate an API key.
+
+Using this API key you can create a test dataset using cURL:
+
+    $ curl -X POST -H "Authorization: Token <your api key>" -H "Content-Type: application/json" http://localhost:8080/api/v1/datasets/ -d @test-dataset.json
+
+The request will return a UUID which is the ID of the dataset that has been created. You can access this dataset by going to
+http://localhost:8080/api/v1/datasets/<dataset id>
 
 
-## Working with data
+## New endpoints
 
-### Importing
+In the file `webserver/views/api/v1/datasets.py` there are four stubs for new API endpoints, which currently raise `NotImplementedError`
 
-AcousticBrainz provides data dumps that you can import into your own server.
-Latest database dump is available at http://acousticbrainz.org/download. You
-need to download full database dump from this page and use it during database
-initialization:
+You have to implement the two methods `add_recordings` and `delete_recordings` based on the documentation which exists in this file.
 
-    $ python manage.py init_db path_to_the_archive
+Endpoints in the `webserver/views/api/v1/datasets.py` file should validate input and use helper methods in the `db/dataset.py` file.
+You may need to write new methods here.
 
-you can also easily remove existing database before initialization using
-`--force` option:
+## Testing
 
-    $ python manage.py init_db --force path_to_the_archive
+Make sure that you test the methods that you write, in `webserver/views/api/v1/test/test_datasets.py` and `db/test/test_dataset.py`
+You can run tests by running the program `py.test` from the repository's main directory.
 
-or import archive after database is created:
+## Submission
 
-    $ python manage.py import_data path_to_the_archive
+You should fork the repository to your own github account and make a new branch.
+When you have done this, open a pull request against this project.
 
-*You can also import dumps that you created yourself. This process is described
-below (see `dump full_db` command).*
-
-### Exporting
-
-There are several ways to export data out of AcousticBrainz server. You can
-create full database dump or export only low-level and high-level data in JSON
-format. Both ways support incremental dumping.
-
-#### Examples
-
-**Full database dump:**
-
-    $ python manage.py dump full_db
-
-**JSON dump:**
-
-    $ python manage.py dump json
-
-*Creates two separate full JSON dumps with low-level and high-level data.*
-
-**Incremental dumps:**
-
-    $ python manage.py dump incremental
-
-*Creates new incremental dump in three different formats: usual database dump,
-low-level and high-level JSON.*
-
-**Previous incremental dumps:**
-
-    $ python manage.py dump incremental --id 42
-
-*Same as another one, but recreates previously created incremental dump.*

@@ -1,5 +1,4 @@
 import db
-import db.dataset_eval
 from utils import dataset_validator
 
 import json
@@ -105,42 +104,6 @@ def get(id):
         row = dict(result.fetchone())
         row["classes"] = _get_classes(row["id"])
         return row
-
-
-def get_public_datasets(status):
-    if status == "all":
-        statuses = db.dataset_eval.VALID_STATUSES
-    elif status in db.dataset_eval.VALID_STATUSES:
-        statuses = [status]
-    else:
-        raise ValueError("Unknown status")
-
-    with db.engine.connect() as connection:
-        query = text("""
-            SELECT dataset.id::text
-                 , dataset.name
-                 , dataset.description
-                 , "user".musicbrainz_id AS author_name
-                 , dataset.created
-                 , job.status
-            FROM dataset
-            JOIN "user"
-              ON "user".id = dataset.author
-              LEFT JOIN LATERAL (SELECT dataset_eval_jobs.status
-                                   FROM dataset_eval_jobs
-                                   JOIN dataset_snapshot
-                                     ON dataset_snapshot.id = dataset_eval_jobs.snapshot_id
-                                  WHERE dataset.id = dataset_snapshot.dataset_id
-                               ORDER BY dataset_eval_jobs.updated DESC
-                               LIMIT 1)
-                               AS JOB ON TRUE
-          WHERE dataset.public = 't'
-            AND job.status = ANY((:status)::eval_job_status[])
-       ORDER BY dataset.created DESC
-             """)
-        result = connection.execute(query, {"status": statuses})
-        return [dict(row) for row in result]
-
 
 def _get_classes(dataset_id):
     with db.engine.connect() as connection:

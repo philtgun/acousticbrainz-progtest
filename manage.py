@@ -1,10 +1,6 @@
 from __future__ import print_function
 import db
-import db.cache
-import db.dump
 import db.user
-import db.stats
-import db.dump_manage
 import db.exceptions
 from webserver import create_app
 import subprocess
@@ -116,58 +112,6 @@ def init_test_db(force=False):
 
     print("Done!")
 
-
-@cli.command()
-@click.argument("archive", type=click.Path(exists=True))
-def import_data(archive):
-    """Imports data dump into the database."""
-    db.init_db_engine(config.SQLALCHEMY_DATABASE_URI)
-    print('Importing data...')
-    db.dump.import_db_dump(archive)
-
-
-@cli.command()
-def compute_stats():
-    """Compute any outstanding hourly stats and add to the database."""
-    db.init_db_engine(config.SQLALCHEMY_DATABASE_URI)
-    import datetime
-    import pytz
-    db.stats.compute_stats(datetime.datetime.now(pytz.utc))
-
-
-@cli.command()
-def cache_stats():
-    """Compute recent stats and add to memcache."""
-    db.init_db_engine(config.SQLALCHEMY_DATABASE_URI)
-    db.cache.init(config.MEMCACHED_SERVERS)
-    db.stats.add_stats_to_cache()
-
-
-@cli.command()
-@click.argument("username")
-@click.option("--force", "-f", is_flag=True, help="Create user if doesn't exist.")
-def add_admin(username, force=False):
-    """Make user an admin."""
-    db.init_db_engine(config.SQLALCHEMY_DATABASE_URI)
-    try:
-        db.user.set_admin(username, admin=True, force=force)
-    except db.exceptions.DatabaseException as e:
-        click.echo("Error: %s" % e, err=True)
-    click.echo("Made %s an admin." % username)
-
-
-@cli.command()
-@click.argument("username")
-def remove_admin(username):
-    """Remove admin privileges from a user."""
-    db.init_db_engine(config.SQLALCHEMY_DATABASE_URI)
-    try:
-        db.user.set_admin(username, admin=False)
-    except db.exceptions.DatabaseException as e:
-        click.echo("Error: %s" % e, err=True)
-    click.echo("Removed admin privileges from %s." % username)
-
-
 def _run_psql(script, database=None):
     script = os.path.join(ADMIN_SQL_DIR, script)
     command = ['psql', '-p', config.PG_PORT, '-U', config.PG_SUPER_USER, '-f', script]
@@ -176,11 +120,6 @@ def _run_psql(script, database=None):
     exit_code = subprocess.call(command)
 
     return exit_code
-
-
-# Please keep additional sets of commands down there
-cli.add_command(db.dump_manage.cli, name="dump")
-
 
 if __name__ == '__main__':
     cli()

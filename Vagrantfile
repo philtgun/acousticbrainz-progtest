@@ -10,7 +10,7 @@ NOHL = ENV['AB_NOHL'] || false
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "ubuntu/trusty64"
-  config.vm.hostname = "acousticbrainz-server"
+  config.vm.hostname = "acousticbrainz-progtest"
 
   config.vm.provider "virtualbox" do |v|
     # Need more resources to be able to compile Essentia with related libs
@@ -19,14 +19,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   # Use a custom vm name
-  config.vm.define :acousticbrainz do |t|
+  config.vm.define :acousticbrainztest do |t|
   end
 
-  bootstrap_args = []
-  if !NOHL
-    bootstrap_args.push("-h")
-  end
-  bootstrap_args.push(MIRROR)
+  bootstrap_args = [MIRROR]
 
   config.vm.provision :shell, path: "admin/bootstrap.sh", args: bootstrap_args
   config.vm.provision :shell, path: "admin/setup_app.sh", args: "/home/vagrant/acousticbrainz-server", privileged: false
