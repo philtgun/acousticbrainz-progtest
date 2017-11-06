@@ -51,7 +51,8 @@ to log in.
 
 ## Running
 
-You can start the web server (will be available at http://localhost:8080/):
+You can start the web server after logging into the Vagrant virtual machine
+with `vagrant ssh` (it will be available at http://localhost:8080/):
 
     $ cd acousticbrainz-server
     $ python manage.py runserver
@@ -64,6 +65,10 @@ The task is to implement two methods API in this definition which modify the dat
 In AcousticBrainz, a dataset has a name, and owner, and a list of _classes_.
 Classes have a name, and a list of _members_, which are UUIDs.
 These are represented by three tables in the database, `dataset`, `dataset_class`, and `dataset_class_member`.
+Class names must be unique for a specific dataset, but could be the same on
+different datasets.
+A UUID can appear only once in a dataset class, but can appear in multiple
+classes regardless of if they are in the same dataset or in different datasets.
 You can see the definitions of these tables in the database setup scripts (`admin/sql/create_tables.sql`)
 
 
@@ -72,19 +77,26 @@ You can see the definitions of these tables in the database setup scripts (`admi
 Once you start the webserver, navigate to http://localhost:8080 and log in using the link in the top right menu, creating
 a MusicBrainz account if you need to. Once you have logged in, go to your user profile and generate an API key.
 
-Using this API key you can create a test dataset using cURL:
+Using this API key you can create a test dataset using cURL. You can run this
+from in the virtual machine or locally:
 
     $ curl -X POST -H "Authorization: Token <your api key>" -H "Content-Type: application/json" http://localhost:8080/api/v1/datasets/ -d @test-dataset.json
 
-The request will return a UUID which is the ID of the dataset that has been created. You can access this dataset by going to
+The request will return a UUID which is the ID of the dataset that has been created. You can access the contents of this dataset by going to the following URL in a browser
 http://localhost:8080/api/v1/datasets/<dataset id>
+
+Or by using curl:
+
+    $ curl -H "Authorization: Token <your api key>"  http://localhost:8080/api/v1/datasets/86dd01cd-47c1-430a-8b24-efc1ecf6862a
 
 
 ## New endpoints
 
 In the file `webserver/views/api/v1/datasets.py` there are four stubs for new API endpoints, which currently raise `NotImplementedError`
 
-You have to implement the two methods `add_recordings` and `delete_recordings` based on the documentation which exists in this file.
+You have to implement the two methods `add_recordings` and `delete_recordings` based on the documentation which exists in the docstrings for these methods.
+Use the _Example request_ blocks in the documentation to understand the format
+that these enpoints accept.
 
 Endpoints in the `webserver/views/api/v1/datasets.py` file should validate input and use helper methods in the `db/dataset.py` file.
 You may need to write new methods here.
