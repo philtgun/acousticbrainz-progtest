@@ -126,3 +126,14 @@ class APIDatasetViewsTestCase(ServerTestCase):
             webserver.views.api.v1.datasets.get_check_dataset("6b6b9205-f9c8-4674-92f5-2ae17bcb3cb0")
         get.assert_called_once_with("6b6b9205-f9c8-4674-92f5-2ae17bcb3cb0")
 
+    def test_add_records_validation_error(self, add_recordings):
+        pass  # TODO
+    
+    def test_add_records(self):
+        pass  # TODO
+
+    def test_remove_records_validation_error(self, remove_recordings):
+        pass  # TODO
+
+    def test_remove_records(self):
+        pass  # TODO

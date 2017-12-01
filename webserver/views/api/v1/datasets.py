@@ -65,13 +65,13 @@ def create_dataset():
     :>json boolean success: ``True`` on successful creation.
     :>json string dataset_id: ID (UUID) of newly created dataset.
     """
-    dataset_dict = request.get_json()
-    if not dataset_dict:
-        raise api_exceptions.APIBadRequest("Data must be submitted in JSON format.")
+    dataset_dict = _get_check_request_json()
+
     if "public" not in dataset_dict:
         dataset_dict["public"] = True
     if "classes" not in dataset_dict:
         dataset_dict["classes"] = []
+
     try:
         dataset_id = db.dataset.create_from_dict(dataset_dict, current_user.id)
     except dataset_validator.ValidationException as e:
@@ -87,7 +87,7 @@ def create_dataset():
 @auth_required
 def delete_dataset(dataset_id):
     """Delete a dataset."""
-    ds = get_dataset(dataset_id)
+    ds = get_check_dataset(dataset_id)
     if ds["author"] != current_user.id:
         raise api_exceptions.APIUnauthorized("You can't delete this dataset.")
     db.dataset.delete(ds["id"])
@@ -217,7 +217,18 @@ def add_recordings(dataset_id):
 
     :resheader Content-Type: *application/json*
     """
-    raise NotImplementedError
+    dataset_dict = _get_check_request_json()
+    try:
+        db.dataset.add_recordings(dataset_id, dataset_dict)
+    except dataset_validator.ValidationException as e:
+        raise api_exceptions.APIBadRequest(e.message)
+    except db.exceptions.NoDataFoundException as e:
+        raise api_exceptions.APINotFound(e.message)
+
+    return jsonify(
+        success=True,
+        message="Recordings have been added.",
+    )
 
 
 @bp_datasets.route("/<uuid:dataset_id>/recordings", methods=["DELETE"])
@@ -240,7 +251,18 @@ def delete_recordings(dataset_id):
 
     :resheader Content-Type: *application/json*
     """
-    raise NotImplementedError
+    dataset_dict = _get_check_request_json()
+    try:
+        db.dataset.remove_recordings(dataset_id, dataset_dict)
+    except dataset_validator.ValidationException as e:
+        raise api_exceptions.APIBadRequest(e.message)
+    except db.exceptions.NoDataFoundException as e:
+        raise api_exceptions.APINotFound(e.message)
+
+    return jsonify(
+        success=True,
+        message="Recordings have been removed.",
+    )
 
 
 def get_check_dataset(dataset_id):
@@ -253,10 +275,19 @@ def get_check_dataset(dataset_id):
     """
     try:
         ds = db.dataset.get(dataset_id)
-    except db.exceptions.NoDataFoundException as e:
+    except db.exceptions.NoDataFoundException:
         raise api_exceptions.APINotFound("Can't find this dataset.")
     if ds["public"] or (current_user.is_authenticated and
                         ds["author"] == current_user.id):
         return ds
     else:
         raise api_exceptions.APINotFound("Can't find this dataset.")
+
+
+def _get_check_request_json():
+    """Verifies JSON from request and raises exception if it's not valid.
+    """
+    dataset_dict = request.get_json()
+    if not dataset_dict:
+        raise api_exceptions.APIBadRequest("Data must be submitted in JSON format.")
+    return dataset_dict

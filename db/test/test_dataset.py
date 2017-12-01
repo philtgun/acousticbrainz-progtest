@@ -139,3 +139,21 @@ class DatasetTestCase(DatabaseTestCase):
         dataset.update(id, self.test_data, author_id=self.test_user_id)
         ds_updated = dataset.get(id)
         self.assertTrue(ds_updated['last_edited'] > ds['last_edited'])
+
+    def test_add_records(self):
+        pass  # TODO
+
+    def test_add_records_malformed(self):
+        pass  # TODO
+
+    def test_add_records_duplicates(self):
+        pass  # TODO
+
+    def test_remove_records(self):
+        pass  # TODO
+
+    def test_remove_records_malformed(self):
+        pass  # TODO
+
+    def test_remove_records_non_existing(self):
+        pass  # TODO

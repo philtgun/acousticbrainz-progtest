@@ -48,6 +48,7 @@ def validate(dataset):
     )
 
     # Name
+    # TODO merge with class name validation
     if not isinstance(dataset["name"], string_types):
         raise ValidationException("Field `name` must be a string.")
     if not (DATASET_NAME_LEN_MIN < len(dataset["name"]) < DATASET_NAME_LEN_MAX):
@@ -67,16 +68,46 @@ def validate(dataset):
         raise ValidationException('Value of `public` must be a boolean.')
 
 
+def validate_recordings(data):
+    """Validator for recordings data.
+
+    Data must have the following structure:
+    {
+        - class_name (string)
+        - recordings (list of UUIDs)
+    }
+
+    Args:
+        data: Data stored in a dictionary.
+
+    Raises:
+        ValidationException: A general exception for validation errors.
+    """
+    if not isinstance(data, dict):
+        raise ValidationException("Data must be a dictionary.")
+
+    _check_dict_structure(
+        data,
+        [
+            ("class_name", True),
+            ("recordings", True)
+        ],
+        "recordings dictionary"
+    )
+    _validate_class_name(data["class_name"])
+    _validate_recordings(data["recordings"], data["class_name"], allow_empty=False)
+
+
 def _validate_classes(classes):
     if not isinstance(classes, list):
-        raise ValidationException("Field `classes` must be a list of strings.")
+        raise ValidationException("Field `classes` must be a list of dictionaries.")
     for idx, cls in enumerate(classes):
         _validate_class(cls, idx)
 
 
 def _validate_class(cls, idx):
     if not isinstance(cls, dict):
-        raise ValidationException("Class number %s is not stored in a dictionary. All classes "
+        raise ValidationException("Class number %s is not a dictionary. All classes "
                                   "must be dictionaries." % idx)
     _check_dict_structure(
         cls,
@@ -89,12 +120,7 @@ def _validate_class(cls, idx):
     )
 
     # Name
-    if not isinstance(cls["name"], string_types):
-        raise ValidationException("Field `name` of the class number %s is not a string." % idx)
-    if not (CLASS_NAME_LEN_MIN < len(cls["name"]) < CLASS_NAME_LEN_MAX):
-        raise ValidationException("Length of the `name` filed in class number %s doesn't fit the limits. "
-                                  "Class name must be between %s and %s characters" %
-                                  (idx, CLASS_NAME_LEN_MIN, CLASS_NAME_LEN_MIN))
+    _validate_class_name("class", cls["name"], idx)
 
     # Description (optional)
     if "description" in cls and cls["description"] is not None:
@@ -106,14 +132,31 @@ def _validate_class(cls, idx):
     _validate_recordings(cls["recordings"], cls["name"], idx)
 
 
-def _validate_recordings(recordings, cls_name, cls_index):
+def _validate_class_name(field, name, cls_index=None):
+    message = " in the class number %s" % cls_index if cls_index is not None else ''
+
+    if not isinstance(name, string_types):
+        raise ValidationException("Field `%s`%s is not a string." % (field, message))
+
+    if not (CLASS_NAME_LEN_MIN < len(name) < CLASS_NAME_LEN_MAX):
+        raise ValidationException("Length of the `%s`%s doesn't fit the limits. "
+                                  "Class name must be between %s and %s characters" %
+                                  (field, message, CLASS_NAME_LEN_MIN, CLASS_NAME_LEN_MIN))
+
+
+def _validate_recordings(recordings, cls_name, cls_index=None, allow_empty=True):
+    message = ' in class "%s" (number %s)' % (cls_name, cls_index) if cls_index is not None else ''
+
     if not isinstance(recordings, list):
-        raise ValidationException('Field `recordings` in class "%s" (number %s) is not a list.'
-                                  % (cls_name, cls_index))
+        raise ValidationException('Field `recordings`%s is not a list.' % message)
+
+    if not allow_empty and len(recordings) == 0:
+        raise ValidationException('Field `recordings`%s is empty.' % message)
+
     for recording in recordings:
         if not UUID_RE.match(recording):
-            raise ValidationException('"%s" is not a valid recording MBID in class "%s" (number %s).' %
-                                      (recording, cls_name, cls_index))
+            raise ValidationException('"%s" is not a valid recording MBID %s.' %
+                                      (recording, cls_name, message))
 
 
 def _check_dict_structure(dictionary, keys, error_location):
