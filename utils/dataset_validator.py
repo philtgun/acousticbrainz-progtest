@@ -52,7 +52,7 @@ def validate(dataset):
     if not isinstance(dataset["name"], string_types):
         raise ValidationException("Field `name` must be a string.")
     if not (DATASET_NAME_LEN_MIN < len(dataset["name"]) < DATASET_NAME_LEN_MAX):
-        raise ValidationException("Class name must be between %s and %s characters" %
+        raise ValidationException("Dataset name must be between %s and %s characters" %
                                   (DATASET_NAME_LEN_MIN, DATASET_NAME_LEN_MAX))
 
     # Description (optional)
@@ -94,7 +94,7 @@ def validate_recordings(data):
         ],
         "recordings dictionary"
     )
-    _validate_class_name(data["class_name"])
+    _validate_class_name("class_name", data["class_name"])
     _validate_recordings(data["recordings"], data["class_name"], allow_empty=False)
 
 
@@ -156,7 +156,7 @@ def _validate_recordings(recordings, cls_name, cls_index=None, allow_empty=True)
     for recording in recordings:
         if not UUID_RE.match(recording):
             raise ValidationException('"%s" is not a valid recording MBID %s.' %
-                                      (recording, cls_name, message))
+                                      (recording, message))
 
 
 def _check_dict_structure(dictionary, keys, error_location):

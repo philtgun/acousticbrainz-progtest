@@ -50,7 +50,7 @@ def create_from_dict(dictionary, author_id):
             # Removing duplicate recordings
             cls["recordings"] = list(set(cls["recordings"]))
 
-            _add_recordings(cls_id, cls["recordings"])
+            _add_recordings(connection, cls_id, cls["recordings"])
 
     return dataset_id
 
@@ -79,22 +79,24 @@ def update(dataset_id, dictionary, author_id):
                            (cls["name"], cls["description"], dataset_id))
             cls_id = result.fetchone()[0]
 
-            _add_recordings(cls_id, cls["recordings"])
+            _add_recordings(connection, cls_id, cls["recordings"])
 
 
 # FIXME are those two a bit redundant?
 def add_recordings(dataset_id, dictionary):
     dataset_validator.validate_recordings(dictionary)
 
-    class_id = _get_class_id(dataset_id, dictionary["class_name"])
-    _add_recordings(class_id, dictionary["recordings"])
+    with db.engine.begin() as connection:
+        class_id = _get_class_id(connection, dataset_id, dictionary["class_name"])
+        _add_recordings(connection, class_id, dictionary["recordings"])
 
 
 def remove_recordings(dataset_id, dictionary):
     dataset_validator.validate_recordings(dictionary)
 
-    class_id = _get_class_id(dataset_id, dictionary["class_name"])
-    _remove_recordings(class_id, dictionary["recordings"])
+    with db.engine.begin() as connection:
+        class_id = _get_class_id(connection, dataset_id, dictionary["class_name"])
+        _remove_recordings(connection, class_id, dictionary["recordings"])
 
 
 def get(id):
@@ -135,18 +137,14 @@ def _get_classes(dataset_id):
         return classes
 
 
-def _get_class_id(dataset_id, class_name):
-    with db.engine.connect() as connection:
-        result = connection.execute(
-            "SELECT id::text "
-            "FROM dataset_class "
-            "WHERE dataset = %s AND name = %s",
-            (dataset_id, class_name)
-        )
-        if result.rowcount < 1:
-            raise exceptions.NoDataFoundException("Can't find class with the specified name.")
+def _get_class_id(connection, dataset_id, class_name):
+    result = connection.execute("SELECT id::text FROM dataset_class "
+                                "WHERE dataset = %s AND name = %s",
+                                (dataset_id, class_name))
+    if result.rowcount < 1:
+        raise exceptions.NoDataFoundException("Can't find class with the specified name.")
 
-        return result.fetchone()["id"]
+    return result.fetchone()["id"]
 
 
 def _get_recordings_in_class(class_id):
@@ -159,24 +157,22 @@ def _get_recordings_in_class(class_id):
         return recordings
 
 
-def _add_recordings(class_id, recordings):
-    query = "INSERT INTO dataset_class_member (class, mbid) VALUES (%s, %s)"
-    _modify_recordings(class_id, recordings, query)
+QUERY_ADD_RECORDINGS = "INSERT INTO dataset_class_member (class, mbid) VALUES (%s, %s)"
+QUERY_REMOVE_RECORDINGS = "DELETE FROM dataset_class_member WHERE class = %s AND mbid = %s"
 
 
-def _remove_recordings(class_id, recordings):
-    query = "DELETE FROM dataset_class_member WHERE class = %s AND mbid = %s"
-    _modify_recordings(class_id, recordings, query)
+def _add_recordings(connection, class_id, recordings):
+    _modify_recordings(connection, class_id, recordings, QUERY_ADD_RECORDINGS)
 
 
-def _modify_recordings(class_id, recordings, query):
-    with db.engine.begin() as connection:
-        for recording_mbid in recordings:
-            try:
-                connection.execute(query, (class_id, recording_mbid))
-            except exc.IntegrityError:
-                pass  # TODO: ask Alastair how to handle, maybe new APIException?
-    # TODO affected rows?
+def _remove_recordings(connection, class_id, recordings):
+    _modify_recordings(connection, class_id, recordings, QUERY_REMOVE_RECORDINGS)
+
+
+def _modify_recordings(connection, class_id, recordings, query):
+    for recording_mbid in recordings:
+        connection.execute(query, (class_id, recording_mbid))
+
 
 def get_by_user_id(user_id, public_only=True):
     """Get datasets created by a specified user.
