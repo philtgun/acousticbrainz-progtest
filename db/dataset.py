@@ -172,7 +172,10 @@ def _modify_recordings(connection, class_id, recordings, query):
 
     # Process each pair one by one
     for recording_mbid in recordings:
-        connection.execute(query, (class_id, recording_mbid))
+        try:
+            connection.execute(query, (class_id, recording_mbid))
+        except exc.IntegrityError:
+            pass  # TODO: ask Alastair how to handle, maybe new APIException?
 
 
 def get_by_user_id(user_id, public_only=True):
