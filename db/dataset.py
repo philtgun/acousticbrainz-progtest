@@ -47,9 +47,6 @@ def create_from_dict(dictionary, author_id):
                            (cls["name"], cls["description"], dataset_id))
             cls_id = result.fetchone()[0]
 
-            # Removing duplicate recordings
-            cls["recordings"] = list(set(cls["recordings"]))
-
             _add_recordings(connection, cls_id, cls["recordings"])
 
     return dataset_id
@@ -170,6 +167,10 @@ def _remove_recordings(connection, class_id, recordings):
 
 
 def _modify_recordings(connection, class_id, recordings, query):
+    # Removing duplicate recordings
+    recordings = list(set(recordings))
+
+    # Process each pair one by one
     for recording_mbid in recordings:
         connection.execute(query, (class_id, recording_mbid))
 
