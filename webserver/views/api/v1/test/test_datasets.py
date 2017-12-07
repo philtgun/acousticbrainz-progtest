@@ -23,6 +23,10 @@ class APIDatasetViewsTestCase(ServerTestCase):
         self.test_user_id = db.user.create(self.test_user_mb_name)
         self.test_user = db.user.get(self.test_user_id)
 
+        # Repeated values used for testing, TODO: use them in other tests
+        self.dummy_json = json.dumps({"a": "thing"})
+        self.dummy_str = "dummy string"
+        self.dummy_uuid = "6b6b9205-f9c8-4674-92f5-2ae17bcb3cb0"
 
     def test_create_dataset_forbidden(self):
         """ Not logged in. """
@@ -126,14 +130,62 @@ class APIDatasetViewsTestCase(ServerTestCase):
             webserver.views.api.v1.datasets.get_check_dataset("6b6b9205-f9c8-4674-92f5-2ae17bcb3cb0")
         get.assert_called_once_with("6b6b9205-f9c8-4674-92f5-2ae17bcb3cb0")
 
+    def _execute_records_api(self, api_method):
+        # Helper method for executing API url
+        self.temporary_login(self.test_user_id)
+        return api_method("/api/v1/datasets/{}/recordings".format(self.dummy_uuid),
+                          data=self.dummy_json, content_type='application/json')
+
+    def _test_method_records_api_error(self, mock_method, api_method, exception_class, api_code):
+        # Wrapper for testing for records API errors
+        exception_error = "exception_error"
+        mock_method.side_effect = exception_class(exception_error)
+
+        resp = self._execute_records_api(api_method)
+
+        self.assertEqual(resp.status_code, api_code)
+        expected = {"message": exception_error}
+        self.assertEqual(resp.json, expected)
+
+    def _test_method_records_success(self, api_method):
+        # Wrapper for testing for successive API execution
+        resp = self._execute_records_api(api_method)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json["success"], True)
+
+    @mock.patch("db.dataset.add_recordings")
     def test_add_records_validation_error(self, add_recordings):
-        pass  # TODO
-    
-    def test_add_records(self):
-        pass  # TODO
+        """ Invalid JSON in PUT recordings """
+        self._test_method_records_api_error(
+            add_recordings, self.client.put, dataset_validator.ValidationException, 400)
 
+    @mock.patch("db.dataset.add_recordings")
+    def test_add_records_not_found_error(self, add_recordings):
+        """ Non-existent class name in PUT recordings """
+        self._test_method_records_api_error(
+            add_recordings, self.client.put, db.exceptions.NoDataFoundException, 404)
+
+    @mock.patch("db.dataset.add_recordings")
+    def test_add_records(self, add_recordings):
+        """ Successively PUT recordings """
+        add_recordings.return_value = None
+        self._test_method_records_success(self.client.put)
+
+    @mock.patch("db.dataset.remove_recordings")
     def test_remove_records_validation_error(self, remove_recordings):
-        pass  # TODO
+        """ Invalid JSON in DELETE recordings """
+        self._test_method_records_api_error(
+            remove_recordings, self.client.delete, dataset_validator.ValidationException, 400)
 
-    def test_remove_records(self):
-        pass  # TODO
+    @mock.patch("db.dataset.remove_recordings")
+    def test_remove_records_not_found_error(self, remove_recordings):
+        """ Non-existent class name in DELETE recordings """
+        self._test_method_records_api_error(
+            remove_recordings, self.client.delete, db.exceptions.NoDataFoundException, 404)
+
+    @mock.patch("db.dataset.remove_recordings")
+    def test_remove_records(self, remove_recordings):
+        """ Successively DELETE recordings """
+        remove_recordings.return_value = None
+        self._test_method_records_success(self.client.delete)

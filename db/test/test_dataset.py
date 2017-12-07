@@ -140,20 +140,68 @@ class DatasetTestCase(DatabaseTestCase):
         ds_updated = dataset.get(id)
         self.assertTrue(ds_updated['last_edited'] > ds['last_edited'])
 
+    def _test_modify_records(self, recording, method, new_length, in_class):
+        # modifies class 1 recordings and checks the new data for presence and length
+        id = dataset.create_from_dict(self.test_data, author_id=self.test_user_id)
+
+        method(id, {
+            "class_name": "Class #1",
+            "recordings": [recording]})
+
+        ds = dataset.get(id)
+        recordings = ds["classes"][0]["recordings"]
+
+        self.assertEqual(len(recordings), new_length)
+
+        assertPresence = self.assertIn if in_class else self.assertNotIn
+        assertPresence(recording, recordings)
+
     def test_add_records(self):
-        pass  # TODO
-
-    def test_add_records_malformed(self):
-        pass  # TODO
-
-    def test_add_records_duplicates(self):
-        pass  # TODO
+        self._test_modify_records("fd528ddb-411c-47bc-a383-1f8a222ed213", dataset.add_recordings, 3, True)
 
     def test_remove_records(self):
-        pass  # TODO
+        self._test_modify_records("0dad432b-16cc-4bf0-8961-fd31d124b01b", dataset.remove_recordings, 1, False)
 
-    def test_remove_records_malformed(self):
-        pass  # TODO
+    def test_add_records_duplicates(self):
+        self._test_modify_records("0dad432b-16cc-4bf0-8961-fd31d124b01b", dataset.add_recordings, 2, True)
 
     def test_remove_records_non_existing(self):
-        pass  # TODO
+        self._test_modify_records("fd528ddb-411c-47bc-a383-1f8a222ed213", dataset.remove_recordings, 2, False)
+
+    # TODO: add/remove multiple recordings tests
+
+    def _test_modify_records_malformed_case(self, id, method, data):
+        with self.assertRaises(dataset_validator.ValidationException):
+            method(id, data)
+
+    def _test_modify_records_malformed(self, method):
+        id = dataset.create_from_dict(self.test_data, author_id=self.test_user_id)
+        data = {"class_name": "Class #1", "recordings": ["fd528ddb-411c-47bc-a383-1f8a222ed213"]}
+
+        self._test_modify_records_malformed_case(id, method, {})
+
+        bad_data = copy.deepcopy(data)
+        del bad_data["class_name"]
+        self._test_modify_records_malformed_case(id, method, bad_data)
+
+        bad_data = copy.deepcopy(data)
+        del bad_data["recordings"]
+        self._test_modify_records_malformed_case(id, method, bad_data)
+
+        bad_data = copy.deepcopy(data)
+        bad_data["class_name"] = None
+        self._test_modify_records_malformed_case(id, method, bad_data)
+
+        bad_data = copy.deepcopy(data)
+        bad_data["class_name"] = ""
+        self._test_modify_records_malformed_case(id, method, bad_data)
+
+        bad_data = copy.deepcopy(data)
+        bad_data["recordings"] = []
+        self._test_modify_records_malformed_case(id, method, bad_data)
+
+    def test_add_records_malformed(self):
+        self._test_modify_records_malformed(dataset.add_recordings)
+
+    def test_remove_records_malformed(self):
+        self._test_modify_records_malformed(dataset.remove_recordings)
